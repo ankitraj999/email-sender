@@ -1,6 +1,6 @@
 import { Resend } from 'resend'
 import { NextResponse } from 'next/server'
-
+import type { NextApiRequest, NextApiResponse } from 'next'
 const resend = new Resend(process.env.RESEND_API_KEY)
 
 export async function POST(request: Request) {
@@ -11,7 +11,7 @@ export async function POST(request: Request) {
       from: from,
       to: [to],
       subject: subject,
-      text: body,
+      html: body,
     })
     console.log(NextResponse.json(data))
     return NextResponse.json(data)

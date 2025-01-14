@@ -74,15 +74,25 @@ export default function EmailSender() {
     if (!validateForm(false)) return
 
     setIsLoading(true)
-    
+    try {
+      // Step 1: Fetch the list of subscribed emails
+      const emailListResponse = await fetch('/api/subcribe-emails', {
+        method: 'GET',
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+      if (!emailListResponse.ok) {
+        throw new Error('Failed to fetch the subscribed emails list')
+      }
+
+      const { emails: subscribedEmails }: { emails: string[] } = await emailListResponse.json()
+      // console.log(subscribedEmails)
     for (const recipient of recipients) {
       
-      console.log(recipient.status)
-      if (recipient.status === undefined) {
+      if (recipient.status === undefined && !subscribedEmails.includes(recipient.email)) {
         try {
           await sendEmail(recipient.email, recipient.name)
           updateRecipientStatus(recipient.email, 'sent')
-          console.log("sent")
         } catch (error) {
           updateRecipientStatus(recipient.email, 'failed')
           console.error(`Failed to send email to ${recipient.email}:`, error)
@@ -91,7 +101,13 @@ export default function EmailSender() {
     }
     setActiveTab('recipients')
     setStatus('All emails processed')
-    setIsLoading(false)
+    }
+    catch (error) {
+      console.error('Error in sendEmails function:', error);
+      setStatus('Error processing emails');
+    } finally {
+      setIsLoading(false);
+    } 
   }
 
   const sendSingleEmail = async () => {
@@ -116,6 +132,9 @@ export default function EmailSender() {
   }
 
   const sendEmail = async (email: string, name: string) => {
+
+    const unsubscribeLink = process.env.UNSUBSCRIBE_URL+`=${email} `;
+    const subscribeLink = process.env.SUBSCRIBE_URL +`=${email} `;
     const response = await fetch('/api/send-email', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -123,7 +142,12 @@ export default function EmailSender() {
         from: fromEmail,
         to: email,
         subject: emailSubject,
-        body: `Hello ${name},\n${emailBody}`
+        body: `
+        <p>Hello ${name},</p>
+        <p>${emailBody}</p>
+        <p>If you no longer wish to receive these emails, please click the unsubscribe link:
+        <a href="${unsubscribeLink}" target="_blank">Unsubscribe</a></p>
+      `,
       }),
     })
     if (!response.ok) {
